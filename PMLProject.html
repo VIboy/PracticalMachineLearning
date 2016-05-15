@@ -123,13 +123,9 @@ $(document).ready(function () {
 </div>
 
 
-<div id="r-markdown" class="section level2">
-<h2>R Markdown</h2>
-<p>This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <a href="http://rmarkdown.rstudio.com" class="uri">http://rmarkdown.rstudio.com</a>.</p>
-</div>
 <div id="background" class="section level2">
 <h2>Background</h2>
-<p>The goal of this project is to predict the manner in which 6 participants did the exercise described by the “classe” variable in the training set. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways according to the specification from A to E. We are free to use any of the other variables to predict with. In this report, I will describe how I built my model, how I used cross-validation, what I think the expected out of sample error is and why I made the choices that I did. Since the raw data consisted of 19622 observations of 160 variables, I decided to use only half the data set.</p>
+<p>The goal of this project is to predict the manner in which 6 participants did the exercise described by the “classe” variable in the training set. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways according to the specification from A to E. We are free to use any of the other variables to predict with. In this report, I will describe how I built my model, how I used cross-validation, what I think the expected out of sample error is and why I made the choices that I did. Since the raw data consisted of 19622 observations of 160 variables, I decided to use only half the data set through sampling of 50% of the raw data set.</p>
 </div>
 <div id="loading-the-necessary-software-packages" class="section level2">
 <h2>Loading the necessary software packages</h2>
@@ -145,16 +141,16 @@ library(corrplot)</code></pre>
 <h2>Download the data</h2>
 <pre class="r"><code>setwd(&quot;~/MachineLearning&quot;)</code></pre>
 </div>
-<div id="section" class="section level1">
-<h1></h1>
-<p>if(!file.exists(“data”)) { dir.create(“data”) } # Load training data fileUrl&lt;-“<a href="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv" class="uri">https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv</a>” download.file(fileUrl,destfile = “./data/projectPML.csv”)</p>
+<div id="load-training-data" class="section level1">
+<h1>Load training data</h1>
+<p>The raw data was downloaded from the following url and saved to a data folder to be used in this project: fileUrl&lt;-“<a href="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv" class="uri">https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv</a>” download.file(fileUrl,destfile = “./data/projectPML.csv”)</p>
 <pre class="r"><code>rawTrain&lt;-read.csv(&quot;data/projectPML.csv&quot;) #raw training set
 dim(rawTrain)</code></pre>
 <pre><code>## [1] 19622   160</code></pre>
 </div>
 <div id="load-testing-data" class="section level1">
 <h1>Load testing data</h1>
-<p>fileUrl1&lt;-“<a href="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv" class="uri">https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv</a>” download.file(fileUrl1,destfile = “./data/testPML.csv”)</p>
+<p>Similarly, the testing data was downloaded from the following link and saved to a data subfolder to be used here. fileUrl1&lt;-“<a href="https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv" class="uri">https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv</a>” download.file(fileUrl1,destfile = “./data/testPML.csv”)</p>
 <pre class="r"><code>rawTest&lt;-read.csv(&quot;data/testPML.csv&quot;) #raw training set
 dim(rawTest)</code></pre>
 <pre><code>## [1]  20 160</code></pre>
@@ -193,18 +189,18 @@ dim(training)</code></pre>
 <pre><code>## [1] 9800   53</code></pre>
 <pre class="r"><code>dim(testing)</code></pre>
 <pre><code>## [1] 20 53</code></pre>
-<p>The above results now show that both the training and testing data sets have the same number of 53 predictors which appear to be a good point from which to start building the model.</p>
+<p>The above results now show that both the training and testing data sets have the same number of 53 predictor variables as recorded by the activity monitors in this exercise. This appear to be a good point from which to start building the model.</p>
 </div>
 <div id="cross-validation" class="section level2">
 <h2>Cross-validation</h2>
-<p>For the purposes of cross-validation, the raw training set was split into a training and validation data sets according to the proportion of 70/30 for purposes of predicting performance and error rates of the various models before testing it on the test set.</p>
-<pre class="r"><code>inTrain &lt;- createDataPartition(y = training$classe, p=0.65, list=FALSE)
+<p>For the purposes of cross-validation, the raw training set was split into a training and validation data sets according to the proportion of 70/30 for purposes of predicting performance and error rates of the various models before testing it on the test set. We intend to use 5-fold cross-validation in the random Forest algorith to build the model.</p>
+<pre class="r"><code>inTrain &lt;- createDataPartition(y = training$classe, p=0.7, list=FALSE)
 training &lt;- training[inTrain,]
 validation &lt;- training[-inTrain,]
 dim(training)</code></pre>
-<pre><code>## [1] 6372   53</code></pre>
+<pre><code>## [1] 6862   53</code></pre>
 <pre class="r"><code>dim(validation)</code></pre>
-<pre><code>## [1] 2212   53</code></pre>
+<pre><code>## [1] 2066   53</code></pre>
 </div>
 </div>
 <div id="preprocessing-with-pca" class="section level1">
@@ -213,8 +209,8 @@ dim(training)</code></pre>
 <pre class="r"><code>M &lt;- abs(cor(training[,-53]))
 diag(M) &lt;- 0
 length(which(M&gt;0.8))</code></pre>
-<pre><code>## [1] 32</code></pre>
-<p>And it showed that 16 of these predictors were highly correlated since each correlated pair is counted twice. However, for this model where I am only using 50% of the observations, I would try to build the model without any preprocessing with Principal Components Analysis (preProcessing =“pca”) in the training model. I would stick to this model without any preprocessing if the accuracy is more than 95%.</p>
+<pre><code>## [1] 30</code></pre>
+<p>And it showed that 15 of these predictors were highly correlated since each correlated pair is counted twice. However, for this model where I am only using 50% of the observations, I would try to build the model without any preprocessing with Principal Components Analysis (preProcessing =“pca”) in the training model. I would stick to this model without any preprocessing if the accuracy is more than 95%.</p>
 <div id="using-random-forest-to-build-the-model" class="section level2">
 <h2>Using Random Forest to build the model</h2>
 <p>Since random Forest is one of the top performing algorithms in any prediction contest, I decided to use it to build our model to predict the ‘classe’ variable with preprocessing in the train function. For cross-validation a k-fold of 5 was used. Since the default ntree is 500, I decided to save time and reduce it to 100 hopefully without affecting the accuracy of the final model that is being built.</p>
@@ -224,40 +220,40 @@ length(which(M&gt;0.8))</code></pre>
 modelFit</code></pre>
 <pre><code>## Random Forest 
 ## 
-## 6372 samples
+## 6862 samples
 ##   52 predictor
 ##    5 classes: 'A', 'B', 'C', 'D', 'E' 
 ## 
 ## No pre-processing
 ## Resampling: Cross-Validated (5 fold) 
-## Summary of sample sizes: 5097, 5098, 5098, 5098, 5097 
+## Summary of sample sizes: 5490, 5490, 5490, 5489, 5489 
 ## Resampling results across tuning parameters:
 ## 
 ##   mtry  Accuracy   Kappa      Accuracy SD  Kappa SD   
-##    2    0.9763025  0.9700158  0.003612095  0.004576142
-##   27    0.9758322  0.9694275  0.003895745  0.004937146
-##   52    0.9673567  0.9586983  0.007183783  0.009096364
+##    2    0.9779935  0.9721588  0.010197210  0.012902251
+##   27    0.9823661  0.9776923  0.005953536  0.007530663
+##   52    0.9717281  0.9642401  0.005215572  0.006585650
 ## 
 ## Accuracy was used to select the optimal model using  the largest value.
-## The final value used for the model was mtry = 2.</code></pre>
-<p>The above results show an accuracyof 98.2% for the best model so the out-of-sample error is not expected to be less than 1.80%. We then proceeded to see how the final model will perform on the validation data set.</p>
+## The final value used for the model was mtry = 27.</code></pre>
+<p>The above results show an accuracy of 98.2% for the best model so the out-of-sample error is not expected to be less than 1.80%. We then proceeded to see how the final model will perform on the validation data set.</p>
 <pre class="r"><code>predRF &lt;- predict(modelFit, validation)
 confusionMatrix(predRF, validation$classe)</code></pre>
 <pre><code>## Confusion Matrix and Statistics
 ## 
 ##           Reference
 ## Prediction   A   B   C   D   E
-##          A 618   0   0   0   0
-##          B   0 452   0   0   0
-##          C   0   0 379   0   0
-##          D   0   0   0 358   0
-##          E   0   0   0   0 405
+##          A 600   0   0   0   0
+##          B   0 380   0   0   0
+##          C   0   0 346   0   0
+##          D   0   0   0 336   0
+##          E   0   0   0   0 404
 ## 
 ## Overall Statistics
 ##                                      
 ##                Accuracy : 1          
-##                  95% CI : (0.9983, 1)
-##     No Information Rate : 0.2794     
+##                  95% CI : (0.9982, 1)
+##     No Information Rate : 0.2904     
 ##     P-Value [Acc &gt; NIR] : &lt; 2.2e-16  
 ##                                      
 ##                   Kappa : 1          
@@ -270,9 +266,9 @@ confusionMatrix(predRF, validation$classe)</code></pre>
 ## Specificity            1.0000   1.0000   1.0000   1.0000   1.0000
 ## Pos Pred Value         1.0000   1.0000   1.0000   1.0000   1.0000
 ## Neg Pred Value         1.0000   1.0000   1.0000   1.0000   1.0000
-## Prevalence             0.2794   0.2043   0.1713   0.1618   0.1831
-## Detection Rate         0.2794   0.2043   0.1713   0.1618   0.1831
-## Detection Prevalence   0.2794   0.2043   0.1713   0.1618   0.1831
+## Prevalence             0.2904   0.1839   0.1675   0.1626   0.1955
+## Detection Rate         0.2904   0.1839   0.1675   0.1626   0.1955
+## Detection Prevalence   0.2904   0.1839   0.1675   0.1626   0.1955
 ## Balanced Accuracy      1.0000   1.0000   1.0000   1.0000   1.0000</code></pre>
 <p>Surprisingly, the above results on the validation data set showed an accuracy of 100% which is better than that for the training set.</p>
 </div>
@@ -285,6 +281,10 @@ answers</code></pre>
 <pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
 ## Levels: A B C D E</code></pre>
 <p>These answers for the test set also gave a 100% accuracy in line with that of the validation set.</p>
+</div>
+<div id="conclusion" class="section level1">
+<h1>Conclusion:</h1>
+<p>This study on Human Activity Recognition (HAR) using a random Forest algorithm gave an accuracy ranging from 98.2 - 100% for the in-sample and out-of-sample data. We could achieve this by just using 50% of the raw data and 53 of the original 160 predictor variables recorded by the various activity monitors in this exercise. The model that was built was also able to achieve 100% correctness when it was tested against the testing set.</p>
 </div>
 
 
