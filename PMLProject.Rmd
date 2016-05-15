@@ -1,0 +1,144 @@
+---
+title: "PML Course Project"
+author: "VIboy"
+date: "12 May 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+## Background
+The goal of this project is to predict the manner in which 6 participants did the exercise described by the "classe" variable in the training set. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways according to the specification from A to E. We are free to use any of the other variables to predict with. In this report, I will describe how I built my model, how I used cross-validation, what I think the expected out of sample error is and why I made the choices that I did. Since the raw data consisted of 19622 observations of 160 variables, I decided to use only half the data set.
+
+## Loading the necessary software packages
+
+```{r message=FALSE}
+library(randomForest)
+library(caret)
+library(dplyr)
+library(corrplot)
+library(ggplot2)
+```
+
+## Download the data
+```{r}
+setwd("~/MachineLearning")
+```
+
+#
+if(!file.exists("data")) {
+    dir.create("data")
+}
+# Load training data
+fileUrl<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+download.file(fileUrl,destfile = "./data/projectPML.csv")        
+
+```{r}
+rawTrain<-read.csv("data/projectPML.csv") #raw training set
+dim(rawTrain)
+```
+# Load testing data
+
+fileUrl1<-"https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+download.file(fileUrl1,destfile = "./data/testPML.csv")
+```{r}
+rawTest<-read.csv("data/testPML.csv") #raw training set
+dim(rawTest)
+```
+
+## Sample raw data set
+Since the raw data consist of 19622 observations, I decided to use just 9800 (50%) of these observations by sampling from the original data set and see how it performs in terms of accuracy. I used set.seed(123) so that the results can be repeated.
+
+```{r}
+set.seed(123)
+rawTrain1<- rawTrain[sample(1:nrow(rawTrain), 9800,replace=FALSE),]
+dim(rawTrain1)
+```
+
+# Remove data columns with more than 80% NAs.
+We can see in the raw data that there are various columns that have a large number of NAs
+and so these have to be removed in both the training and test sets.
+```{r}
+training <- rawTrain1[,colSums(is.na(rawTrain1)) < nrow(rawTrain1)*0.8]
+dim(training) # 19622 93
+
+testing <- rawTest[,colSums(is.na(rawTest)) < nrow(rawTest)*0.8]
+dim(testing) # 20 60
+```
+
+
+# Remove variables in both the training and testing data sets that do not have any impact on the manner 
+# in which the participants did the exercise as reflected in the classe variable.
+
+```{r}
+training <- select(training, - contains("timestamp"), -ends_with("window"), -starts_with("user"), -X)
+testing <- select(testing, - contains("timestamp"), -ends_with("window"), -starts_with("user"), -X)
+```
+
+# In addition, I also decided to remove these variables of which consists of 2-3 levels factors to reduce the number of predictor variables for the final model.
+```{r}
+training <- select(training, -contains("kurtosis"))
+training <- select(training, -contains("skewness"))
+training <- select(training, -contains("max"))
+training <- select(training, -contains("min"))
+training <- select(training, -contains("amplitude"))
+dim(training)
+dim(testing)
+```
+The above results now show that both the training and testing data sets have the same number of 53 predictors which appear to be a good point from which to start building the model.
+
+## Cross-validation 
+For the purposes of cross-validation,  the raw training set was split into a training
+and validation data sets according to the proportion of 70/30 for purposes of predicting performance and error rates of the various models before testing it on the test set.
+
+```{r}
+inTrain <- createDataPartition(y = training$classe, p=0.7, list=FALSE)
+training <- training[inTrain,]
+validation <- training[-inTrain,]
+dim(training)
+dim(validation)
+```
+
+# Preprocessing with PCA
+In order to check how many of the predictors are highly correlated, we used the following code:
+```{r}
+M <- abs(cor(training[,-53]))
+diag(M) <- 0
+length(which(M>0.8))
+```
+
+And it showed that 15 of these predictors were highly correlated since each correlated pair is counted twice. However, for this model where I am only using 50% of the observations, I would try to build the model without any preprocessing with Principal Components Analysis (preProcessing ="pca") in the training model. I would stick to this model without any preprocessing if the accuracy is more than 95%.
+
+## Using Random Forest to build the model
+Since random Forest is one of the top performing algorithms in any prediction contest, I decided to use it to build our model to predict the 'classe' variable with preprocessing in the train function. For cross-validation a k-fold of 5 was used. Since the default ntree is 500, I decided to save time and reduce it to 100 hopefully without affecting the accuracy of the final model that is being built.
+
+```{r, warning=FALSE}
+modelFit <- train(training$classe ~.,  method="rf", trControl=trainControl(method="cv", number = 5),ntree=100,
+                  importance=TRUE, data=training)
+
+modelFit
+```
+
+The above results show an accuracyof 98.2% for the best model so the out-of-sample error is not expected to be less than 1.80%. We then proceeded to see how the final model will perform on the validation data set.
+```{r}
+predRF <- predict(modelFit, validation)
+confusionMatrix(predRF, validation$classe)
+```
+
+Surprisingly, the above results on the validation data set showed an accuracy of 100% which is better than that for the training set.
+
+# Answers for Test Set Predictions
+The following code was used to do the predictions for the test set answers using the model built here:
+
+```{r}
+answers <- predict(modelFit, testing)
+answers
+```
+These answers for the test set also gave a 100% accuracy in line with that of the validation set.
+
