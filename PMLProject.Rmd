@@ -73,15 +73,15 @@ dim(testing) # 20 60
 ```
 
 
-# Remove variables in both the training and testing data sets that do not have any impact on the manner 
-# in which the participants did the exercise as reflected in the classe variable.
+# Remove "timestamp", "window", and "user" variables as well as factor variables
+In both the training and testing data sets there are various 2-3 level factor variables that do not seem to have any impact on the manner in which the participants did the exercise according to the classe variable. These were removed so that what we finally have are variables with numeric and integer values for building the model.
 
 ```{r}
 training <- select(training, - contains("timestamp"), -ends_with("window"), -starts_with("user"), -X)
 testing <- select(testing, - contains("timestamp"), -ends_with("window"), -starts_with("user"), -X)
 ```
 
-# In addition, I also decided to remove these variables of which consists of 2-3 levels factors to reduce the number of predictor variables for the final model.
+## Remove 2-3 level factor variables
 ```{r}
 training <- select(training, -contains("kurtosis"))
 training <- select(training, -contains("skewness"))
@@ -98,7 +98,7 @@ For the purposes of cross-validation,  the raw training set was split into a tra
 and validation data sets according to the proportion of 70/30 for purposes of predicting performance and error rates of the various models before testing it on the test set.
 
 ```{r}
-inTrain <- createDataPartition(y = training$classe, p=0.7, list=FALSE)
+inTrain <- createDataPartition(y = training$classe, p=0.65, list=FALSE)
 training <- training[inTrain,]
 validation <- training[-inTrain,]
 dim(training)
@@ -113,7 +113,7 @@ diag(M) <- 0
 length(which(M>0.8))
 ```
 
-And it showed that 15 of these predictors were highly correlated since each correlated pair is counted twice. However, for this model where I am only using 50% of the observations, I would try to build the model without any preprocessing with Principal Components Analysis (preProcessing ="pca") in the training model. I would stick to this model without any preprocessing if the accuracy is more than 95%.
+And it showed that 16 of these predictors were highly correlated since each correlated pair is counted twice. However, for this model where I am only using 50% of the observations, I would try to build the model without any preprocessing with Principal Components Analysis (preProcessing ="pca") in the training model. I would stick to this model without any preprocessing if the accuracy is more than 95%.
 
 ## Using Random Forest to build the model
 Since random Forest is one of the top performing algorithms in any prediction contest, I decided to use it to build our model to predict the 'classe' variable with preprocessing in the train function. For cross-validation a k-fold of 5 was used. Since the default ntree is 500, I decided to save time and reduce it to 100 hopefully without affecting the accuracy of the final model that is being built.
